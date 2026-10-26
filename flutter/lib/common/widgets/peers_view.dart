@@ -192,7 +192,7 @@ class _PeersViewState extends State<_PeersView>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.sentiment_very_dissatisfied_rounded,
+                  Icons.hexagon_outlined,
                   color: Theme.of(context).tabBarTheme.labelColor,
                   size: 40,
                 ).paddingOnly(bottom: 10),

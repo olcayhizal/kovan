@@ -195,8 +195,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         textBaseline: TextBaseline.alphabetic,
         children: [
           Container(
-            width: 2,
-            decoration: const BoxDecoration(color: MyTheme.accent),
+            width: 1,
+            decoration: BoxDecoration(color: MyTheme.accent50),
           ).marginOnly(top: 5),
           Expanded(
             child: Padding(
@@ -301,9 +301,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         textBaseline: TextBaseline.alphabetic,
         children: [
           Container(
-            width: 2,
+            width: 1,
             height: 52,
-            decoration: BoxDecoration(color: MyTheme.accent),
+            decoration: BoxDecoration(color: MyTheme.accent50),
           ),
           Expanded(
             child: Padding(

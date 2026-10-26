@@ -361,7 +361,7 @@ class GestureInfo extends StatelessWidget {
   final double width;
 
   final iconSize = 35.0;
-  final iconColor = MyTheme.accent;
+  Color get iconColor => MyTheme.accent;
 
   @override
   Widget build(BuildContext context) {

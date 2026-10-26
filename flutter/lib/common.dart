@@ -249,16 +249,29 @@ class MyTheme {
   MyTheme._();
 
   static const Color grayBg = Color(0xFFEFEFF2);
-  static const Color accent = Color(0xFF0071FF);
-  static const Color accent50 = Color(0x770071FF);
-  static const Color accent80 = Color(0xAA0071FF);
+  // KOVAN: monochrome brand. The accent is ink on light surfaces and
+  // paper on dark ones, so it is resolved from the active theme.
+  static const Color inkLight = Color(0xFF141414);
+  static const Color inkDark = Color(0xFFEDEDED);
+  static bool get _isDark {
+    try {
+      return Get.isDarkMode;
+    } catch (_) {
+      return currentThemeMode() == ThemeMode.dark;
+    }
+  }
+
+  static Color get accent => _isDark ? inkDark : inkLight;
+  static Color get accent50 => accent.withOpacity(0.47);
+  static Color get accent80 => accent.withOpacity(0.67);
+  static Color get onAccent => _isDark ? inkLight : Colors.white;
   static const Color canvasColor = Color(0xFF212121);
   static const Color border = Color(0xFFCCCCCC);
   static const Color idColor = Color(0xFF00B6F0);
   static const Color darkGray = Color.fromARGB(255, 148, 148, 148);
   static const Color cmIdColor = Color(0xFF21790B);
   static const Color dark = Colors.black87;
-  static const Color button = Color(0xFF2C8CFF);
+  static Color get button => accent;
   static const Color hoverBorder = Color(0xFF999999);
 
   // ListTile
@@ -406,7 +419,7 @@ class MyTheme {
         bodySmall: TextStyle(fontSize: 12, color: Colors.black87, height: 1.25),
         bodyMedium:
             TextStyle(fontSize: 14, color: Colors.black87, height: 1.25),
-        labelLarge: TextStyle(fontSize: 16.0, color: MyTheme.accent80)),
+        labelLarge: TextStyle(fontSize: 16.0, color: Color(0xAA141414))),
     cardColor: grayBg,
     hintColor: Color(0xFFAAAAAA),
     visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -429,7 +442,8 @@ class MyTheme {
         : mobileTextButtonTheme,
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: MyTheme.accent,
+        backgroundColor: inkLight,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
@@ -452,7 +466,7 @@ class MyTheme {
         style:
             MenuStyle(backgroundColor: MaterialStatePropertyAll(Colors.white))),
     colorScheme: ColorScheme.light(
-        primary: Colors.blue, secondary: accent, background: grayBg),
+        primary: inkLight, secondary: inkLight, background: grayBg),
     popupMenuTheme: PopupMenuThemeData(
         color: Colors.white,
         shape: RoundedRectangleBorder(
@@ -506,7 +520,7 @@ class MyTheme {
       labelLarge: TextStyle(
         fontSize: 16.0,
         fontWeight: FontWeight.bold,
-        color: accent80,
+        color: Color(0xAAEDEDED),
       ),
     ),
     cardColor: Color(0xFF24252B),
@@ -532,8 +546,8 @@ class MyTheme {
         : mobileTextButtonTheme,
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: MyTheme.accent,
-        foregroundColor: Colors.white,
+        backgroundColor: inkDark,
+        foregroundColor: inkLight,
         disabledForegroundColor: Colors.white70,
         disabledBackgroundColor: Colors.white10,
         shape: RoundedRectangleBorder(
@@ -560,8 +574,8 @@ class MyTheme {
         style: MenuStyle(
             backgroundColor: MaterialStatePropertyAll(Color(0xFF121212)))),
     colorScheme: ColorScheme.dark(
-      primary: Colors.blue,
-      secondary: accent,
+      primary: inkDark,
+      secondary: inkDark,
       background: Color(0xFF24252B),
     ),
     popupMenuTheme: PopupMenuThemeData(
@@ -928,7 +942,7 @@ class OverlayDialogManager {
                                   style: flatButtonStyle,
                                   onPressed: cancel,
                                   child: Text(translate('Cancel'),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: MyTheme.accent)))))
                 ])),
         onCancel: showCancel ? cancel : null,
@@ -3808,9 +3822,11 @@ class _LogoState extends State<_Logo> {
             },
           );
           return Container(
-            constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
+            // KOVAN: the lockup sits on the same left edge as the home text.
+            constraints: BoxConstraints(maxWidth: 300, maxHeight: 26),
+            alignment: Alignment.centerLeft,
             child: image,
-          ).marginOnly(left: 12, right: 12, top: 12);
+          ).marginOnly(left: 22, right: 12, top: 20, bottom: 6);
         }
         return const Offstage();
       },
