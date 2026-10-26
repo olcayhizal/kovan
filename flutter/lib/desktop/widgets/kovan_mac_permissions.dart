@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
@@ -21,14 +22,19 @@ class _MacPermission {
   final bool Function(bool prompt) check;
   final bool incoming;
 
+  /// macOS caches this answer per process; only a relaunch picks up a grant.
+  final bool needsRestart;
+
   const _MacPermission(
-      this.name, this.reason, this.pane, this.check, this.incoming);
+      this.name, this.reason, this.pane, this.check, this.incoming,
+      {this.needsRestart = false});
 }
 
 final _permissions = [
   _MacPermission('kovan_perm_screen', 'kovan_perm_screen_tip',
       'Privacy_ScreenCapture', (p) => bind.mainIsCanScreenRecording(prompt: p),
-      true),
+      true,
+      needsRestart: true),
   _MacPermission('kovan_perm_acc', 'kovan_perm_acc_tip', 'Privacy_Accessibility',
       (p) => bind.mainIsProcessTrusted(prompt: p), true),
   _MacPermission('kovan_perm_input', 'kovan_perm_input_tip',
@@ -81,6 +87,15 @@ class _KovanMacPermissionsState extends State<KovanMacPermissions> {
     // so the pane is opened as well.
     p.check(true);
     await launchUrl(Uri.parse('$_kSettingsUrl${p.pane}'));
+  }
+
+  Future<void> _restart() async {
+    // .../KOVAN.app/Contents/MacOS/KOVAN -> .../KOVAN.app
+    final app = File(Platform.resolvedExecutable).parent.parent.parent.path;
+    await Process.start(
+        '/bin/sh', ['-c', 'sleep 1; /usr/bin/open -n "\$0"', app],
+        mode: ProcessStartMode.detached);
+    exit(0);
   }
 
   int get _missingCount => _granted.values.where((v) => !v).length;
@@ -192,19 +207,39 @@ class _KovanMacPermissionsState extends State<KovanMacPermissions> {
       ),
     );
 
+    final restart = p.needsRestart
+        ? TextButton.icon(
+            onPressed: _restart,
+            icon: const Icon(Icons.restart_alt, size: 16),
+            label: Text(translate('kovan_perm_restart')),
+            style: TextButton.styleFrom(
+              foregroundColor: MyTheme.accent,
+              textStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          )
+        : null;
+
     return LayoutBuilder(builder: (context, constraints) {
       final narrow = constraints.maxWidth < 360;
       if (granted) return status.marginOnly(top: 12);
       if (narrow) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [status, const SizedBox(height: 8), button],
+          children: [
+            status,
+            const SizedBox(height: 8),
+            button,
+            if (restart != null) restart.marginOnly(top: 4),
+          ],
         ).marginOnly(top: 12);
       }
       return Row(
         children: [
           Expanded(child: status),
           const SizedBox(width: 12),
+          if (restart != null) restart.marginOnly(right: 8),
           button
         ],
       ).marginOnly(top: 12);
