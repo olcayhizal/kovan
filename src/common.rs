@@ -2459,7 +2459,23 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+// KOVAN: app name and our own server/key are fixed at build time.
+const KOVAN_APP_NAME: &str = "KOVAN";
+const KOVAN_RENDEZVOUS_SERVER: &str = "kovan.sehirapp.com";
+const KOVAN_PUB_KEY: &str = "Uru3uBmvLX7TwW5KfClEhIxI1Jiykq2sNACZPwt423E=";
+
+fn load_kovan_brand() {
+    *config::APP_NAME.write().unwrap() = KOVAN_APP_NAME.to_owned();
+    let mut settings = config::OVERWRITE_SETTINGS.write().unwrap();
+    settings.insert(
+        "custom-rendezvous-server".to_owned(),
+        KOVAN_RENDEZVOUS_SERVER.to_owned(),
+    );
+    settings.insert("key".to_owned(), KOVAN_PUB_KEY.to_owned());
+}
+
 pub fn load_custom_client() {
+    load_kovan_brand();
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
