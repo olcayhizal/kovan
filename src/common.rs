@@ -2472,6 +2472,11 @@ fn load_kovan_brand() {
         KOVAN_RENDEZVOUS_SERVER.to_owned(),
     );
     settings.insert("key".to_owned(), KOVAN_PUB_KEY.to_owned());
+    drop(settings);
+    // The server is fixed, so its settings and the upstream credit line are hidden.
+    let mut buildin = config::BUILTIN_SETTINGS.write().unwrap();
+    buildin.insert(keys::OPTION_HIDE_POWERED_BY_ME.to_owned(), "Y".to_owned());
+    buildin.insert(keys::OPTION_HIDE_SERVER_SETTINGS.to_owned(), "Y".to_owned());
 }
 
 pub fn load_custom_client() {
