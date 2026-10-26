@@ -380,12 +380,61 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         ),
                     ],
                   ),
+                  if (!bind.isDisableSettings())
+                    buildPermanentPasswordLine(context),
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // KOVAN: a permanent password lets your own devices be reached without a
+  // new one-time password each time, so it is offered right on the home pane.
+  Widget buildPermanentPasswordLine(BuildContext context) {
+    final isSet = bind.mainGetCommonSync(key: "permanent-password-set") == "true";
+    final muted =
+        Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75);
+    void openDialog() =>
+        setPasswordDialog(notEmptyCallback: () => setState(() {}));
+    final linkStyle = TextButton.styleFrom(
+      foregroundColor: MyTheme.accent,
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(0, 32),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    );
+    if (isSet) {
+      return Row(
+        children: [
+          const Icon(Icons.check_circle, size: 16, color: Color(0xFF1F9D55)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(translate('kovan_pw_set'),
+                style: TextStyle(fontSize: 13, color: muted)),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+              onPressed: openDialog,
+              style: linkStyle,
+              child: Text(translate('kovan_pw_change'))),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton.icon(
+          onPressed: openDialog,
+          style: linkStyle,
+          icon: const Icon(Icons.key, size: 16),
+          label: Text(translate('kovan_pw_add')),
+        ),
+        Text(translate('kovan_pw_tip'),
+            style: TextStyle(fontSize: 13, height: 1.35, color: muted)),
+      ],
     );
   }
 

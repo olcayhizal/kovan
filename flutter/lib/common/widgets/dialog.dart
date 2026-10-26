@@ -968,11 +968,8 @@ _connectDialog(
   String? osAccountDescTip,
 }) async {
   final errUsername = ''.obs;
-  var rememberPassword = false;
-  if (passwordController != null) {
-    rememberPassword =
-        await bind.sessionGetRemember(sessionId: sessionId) ?? false;
-  }
+  // KOVAN: remembering is the default, so the next connect is one click.
+  var rememberPassword = true;
   if (osUsernameController != null) {
     osUsernameController.addListener(() {
       if (errUsername.value.isNotEmpty) {
