@@ -1804,6 +1804,8 @@ pub fn main_get_last_remote_id() -> String {
 
 pub fn main_get_software_update_url() {
     crate::common::check_software_update();
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    crate::kovan_update::spawn_check();
 }
 
 pub fn main_get_home_dir() -> String {
@@ -2705,6 +2707,9 @@ pub fn main_get_printer_names() -> SyncReturn<String> {
 }
 
 pub fn main_get_common(key: String) -> String {
+    if let Some(value) = kovan_get_common(&key) {
+        return value;
+    }
     if key == "is-printer-installed" {
         #[cfg(target_os = "windows")]
         {
@@ -2802,6 +2807,74 @@ fn push_update_me_error(error: String) {
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
+fn kovan_get_common(key: &str) -> Option<String> {
+    if key == "kovan-build" {
+        return Some(crate::kovan_update::current_build().to_string());
+    }
+    if key == format!("verified-download-url-{}", crate::kovan_update::RELEASE_PAGE) {
+        // The signed manifest already verified this artifact.
+        return Some(match crate::kovan_update::latest() {
+            Some(artifact) => artifact.url,
+            None => "error:No KOVAN update is available".to_owned(),
+        });
+    }
+    None
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn kovan_get_common(_key: &str) -> Option<String> {
+    None
+}
+
+// KOVAN: same download/install steps as upstream, fed by the signed manifest.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn kovan_set_update(key: &str, url: &str) {
+    let Some(artifact) = crate::kovan_update::artifact_for_url(url) else {
+        return;
+    };
+    let Some(file) = crate::kovan_update::download_path(&artifact) else {
+        push_update_me_error("Invalid KOVAN update url".to_owned());
+        return;
+    };
+    if key == "download-new-version" {
+        let event_key = "download-new-version".to_owned();
+        let options = crate::hbbs_http::downloader::DownloadOptions {
+            expected_size: artifact.size,
+            artifact_sha256: artifact.sha256.clone(),
+        };
+        let data = match crate::hbbs_http::downloader::download_file(
+            artifact.url.clone(),
+            Some(file),
+            options,
+        ) {
+            Ok(id) => HashMap::from([("name", event_key), ("id", id)]),
+            Err(e) => HashMap::from([("name", event_key), ("error", e.to_string())]),
+        };
+        let _res = flutter::push_global_event(
+            flutter::APP_TYPE_MAIN,
+            serde_json::ser::to_string(&data).unwrap_or("".to_owned()),
+        );
+        return;
+    }
+    let Some(file_str) = file.to_str() else {
+        push_update_me_error("Invalid UTF-8 path for downloaded update file".to_owned());
+        return;
+    };
+    #[cfg(target_os = "windows")]
+    let update_res = crate::platform::update_to_verified(file_str, &artifact.sha256, artifact.size);
+    #[cfg(target_os = "macos")]
+    let update_res = crate::platform::macos::update_to_verified_dmg(
+        file_str,
+        &artifact.sha256,
+        Some(artifact.size),
+    );
+    if let Err(e) = update_res {
+        crate::updater::remove_update_file(&file);
+        push_update_me_error(format!("Failed to update to new version, {}", e));
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn verified_update_artifact_for_release_page_url(
     release_page_url: &str,
 ) -> ResultType<crate::update_metadata::VerifiedUpdateArtifact> {
@@ -2849,7 +2922,11 @@ pub fn main_set_common(_key: String, _value: String) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         use crate::updater::get_update_download_file_from_url;
-        if _key == "download-new-version" {
+        if (_key == "download-new-version" || _key == "update-me")
+            && crate::kovan_update::artifact_for_url(&_value).is_some()
+        {
+            kovan_set_update(&_key, &_value);
+        } else if _key == "download-new-version" {
             let download_url = _value.clone();
             let event_key = "download-new-version".to_owned();
             let data =

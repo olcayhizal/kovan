@@ -480,6 +480,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
+    if (updateUrl == kKovanReleasePage && !isCardClosed) {
+      // KOVAN: an installed copy updates in place with one click; a portable
+      // copy is pointed to the release page.
+      final installed = bind.mainIsInstalled();
+      return buildInstallCard(
+          "",
+          "kovan_update_tip",
+          installed ? "Update" : "Download",
+          installed
+              ? () => handleUpdate(kKovanReleasePage)
+              : () => launchUrl(Uri.parse(kKovanReleasePage)),
+          closeButton: true);
+    }
     if (!bind.isCustomClient() &&
         updateUrl.isNotEmpty &&
         !isCardClosed &&

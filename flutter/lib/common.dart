@@ -4094,6 +4094,18 @@ void checkUpdate() {
       Timer(const Duration(seconds: 1), () async {
         bind.mainGetSoftwareUpdateUrl();
       });
+    } else if (isWindows || isMacOS) {
+      // KOVAN: our signed manifest drives updates; the release page is the
+      // id handleUpdate() passes back to the Rust side.
+      platformFFI.registerEventHandler(
+          kKovanUpdateAvailable, kKovanUpdateAvailable,
+          (Map<String, dynamic> evt) async {
+        stateGlobal.updateUrl.value = kKovanReleasePage;
+      });
+      Timer(const Duration(seconds: 3), () => bind.mainGetSoftwareUpdateUrl());
+      // Long-running sessions still hear about new builds.
+      Timer.periodic(const Duration(hours: 6),
+          (_) => bind.mainGetSoftwareUpdateUrl());
     }
   }
 }

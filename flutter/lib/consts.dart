@@ -721,3 +721,6 @@ extension WindowsTargetExt on int {
 }
 
 const kCheckSoftwareUpdateFinish = 'check_software_update_finish';
+const kKovanUpdateAvailable = 'kovan_update_available';
+const kKovanReleasePage =
+    'https://github.com/olcayhizal/kovan/releases/tag/kovan-nightly';

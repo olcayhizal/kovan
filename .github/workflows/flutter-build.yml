@@ -21,6 +21,8 @@ on:
 # in this file!
 
 env:
+  # KOVAN: build number embedded in the app and compared by its updater.
+  KOVAN_BUILD: "${{ github.run_number }}"
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   RUST_VERSION: "1.75" # sciter failed on m1 with 1.78 because of https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   MAC_RUST_VERSION: "1.81" # 1.81 is requred for macos, because of https://github.com/yury/cidre requires 1.81
@@ -1042,6 +1044,32 @@ jobs:
           cargo test --locked --release --lib --features "$FEATURES"
           # Opt-in, and its macOS tests run nowhere else.
           cargo test --locked --release -p clipboard --features unix-file-copy-paste
+
+      # KOVAN: one stable certificate keeps macOS permissions across updates.
+      - name: Sign KOVAN.app with the KOVAN certificate
+        if: env.UPLOAD_ARTIFACT == 'true'
+        env:
+          KOVAN_P12_BASE64: ${{ secrets.KOVAN_P12_BASE64 }}
+          KOVAN_P12_PASSWORD: ${{ secrets.KOVAN_P12_PASSWORD }}
+        run: |
+          if [ -z "$KOVAN_P12_BASE64" ]; then
+            echo "KOVAN_P12_BASE64 is not set; keeping the ad-hoc signature"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/kovan.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "$KOVAN_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/kovan.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/kovan.p12" -k "$KEYCHAIN" -P "$KOVAN_P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/kovan.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          APP=./flutter/build/macos/Build/Products/Release/KOVAN.app
+          codesign --force --deep --keychain "$KEYCHAIN" --sign "KOVAN Code Signing" \
+            --entitlements ./flutter/macos/Runner/Release.entitlements "$APP"
+          codesign -d -r- "$APP"
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'

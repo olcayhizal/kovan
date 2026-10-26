@@ -466,6 +466,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("kovan_perm_granted", "İzin verildi"),
         ("kovan_perm_open", "Ayarları aç"),
         ("kovan_perm_restart", "Yeniden başlat"),
+        ("kovan_update_tip", "KOVAN'ın yeni sürümü hazır. Ayarlarınız ve izinleriniz korunur."),
         ("kovan_pw_set", "Kalıcı parola ayarlı"),
         ("kovan_pw_change", "Değiştir"),
         ("kovan_pw_add", "Kalıcı parola belirle"),

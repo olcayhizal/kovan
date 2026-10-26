@@ -13,3 +13,71 @@ jobs:
     with:
       upload-artifact: true
       upload-tag: "kovan-nightly"
+
+  # Signed manifest the KOVAN updater reads. Only assets this run uploaded are
+  # listed, so a failed platform never re-offers an old binary as new.
+  publish-kovan-manifest:
+    needs: run-kovan-build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build, sign and upload kovan-latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KOVAN_UPDATE_KEY: ${{ secrets.KOVAN_UPDATE_KEY }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          BUILD: ${{ github.run_number }}
+          TAG: kovan-nightly
+        run: |
+          if [ -z "$KOVAN_UPDATE_KEY" ]; then
+            echo "KOVAN_UPDATE_KEY is not set; skipping the update manifest"
+            exit 0
+          fi
+          pip install --quiet cryptography
+          python3 - <<'PY'
+          import base64, hashlib, json, os, subprocess, urllib.request
+          from cryptography.hazmat.primitives.asymmetric import ed25519
+
+          repo, tag = os.environ["REPO"], os.environ["TAG"]
+          def gh(path):
+              return json.loads(subprocess.check_output(["gh", "api", path]))
+
+          started = gh(f"repos/{repo}/actions/runs/{os.environ['RUN_ID']}")["run_started_at"]
+          release = gh(f"repos/{repo}/releases/tags/{tag}")
+          targets = [
+              ("-x86_64.exe", ("windows", "x86_64", "exe")),
+              ("-aarch64.exe", ("windows", "aarch64", "exe")),
+              ("-x86_64.dmg", ("macos", "x86_64", "dmg")),
+              ("-aarch64.dmg", ("macos", "aarch64", "dmg")),
+          ]
+          artifacts = []
+          for asset in release["assets"]:
+              name = asset["name"]
+              match = next((t for suffix, t in targets if name.endswith(suffix) and "sciter" not in name), None)
+              if match is None or asset["updated_at"] < started:
+                  continue
+              url = f"https://github.com/{repo}/releases/download/{tag}/{name}"
+              digest, size = hashlib.sha256(), 0
+              with urllib.request.urlopen(url) as response:
+                  while chunk := response.read(1 << 20):
+                      digest.update(chunk)
+                      size += len(chunk)
+              platform, arch, fmt = match
+              artifacts.append({"platform": platform, "arch": arch, "format": fmt,
+                                "url": url, "size": size, "sha256": digest.hexdigest()})
+              print(f"{platform}/{arch}: {name} {size} bytes")
+
+          if not artifacts:
+              print("No asset was uploaded by this run; nothing to publish")
+              raise SystemExit(0)
+          body = json.dumps({"build": int(os.environ["BUILD"]), "artifacts": artifacts},
+                            separators=(",", ":")).encode()
+          key = ed25519.Ed25519PrivateKey.from_private_bytes(base64.b64decode(os.environ["KOVAN_UPDATE_KEY"]))
+          signature = base64.b64encode(key.sign(b"KOVAN update v1\n" + body)).decode()
+          open("kovan-latest.json", "wb").write(body)
+          open("kovan-latest.json.sig", "w").write(signature + "\n")
+          PY
+          if [ -f kovan-latest.json ]; then
+            gh release upload "$TAG" kovan-latest.json kovan-latest.json.sig --clobber -R "$REPO"
+          fi
