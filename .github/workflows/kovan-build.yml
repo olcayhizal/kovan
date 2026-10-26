@@ -43,7 +43,9 @@ jobs:
           def gh(path):
               return json.loads(subprocess.check_output(["gh", "api", path]))
 
-          started = gh(f"repos/{repo}/actions/runs/{os.environ['RUN_ID']}")["run_started_at"]
+          # created_at stays fixed when failed jobs are re-run, so assets from
+          # earlier attempts of this run still count as this run's.
+          started = gh(f"repos/{repo}/actions/runs/{os.environ['RUN_ID']}")["created_at"]
           release = gh(f"repos/{repo}/releases/tags/{tag}")
           targets = [
               ("-x86_64.exe", ("windows", "x86_64", "exe")),
